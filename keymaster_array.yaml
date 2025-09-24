@@ -1,0 +1,217 @@
+# Keymaster Basic v2
+# Simple lock code manager for Home Assistant
+# Uses a sensor-based lock table for all the lock codes
+# Based on Keymaster-Basic v1 by @bdraco
+
+# Credits go to the following;
+# - bdraco for the initial Keymaster-Basic app that got me wandering down these rabbit holes....
+# - sensor.lockcodes (wish I was this smart!) https://community.home-assistant.io/t/wth-cant-input-helpers-be-read-only-in-ui/467562/13
+# - Time variables in the dashboard: https://www.home-assistant.io/docs/configuration/templating/#time
+# - Gemini AI (Google) for helping with YAML formatting and coaching
+
+# TODO:
+# - Add time tracking for each slot: PIN sync, Last used - done 2025-09-23
+# - Lookup number of code slots on the lock device using zwave-JS
+# - Restructure the YAML to support multiple locks:
+#   KEY: locks
+#   VALUE:
+#     entity_id: lock.Your_Lock_Here
+#     num_slots: zwave-JS looked up value
+#     pin_length: zwave-JS looked up value
+#     key: slot_xx
+#     value: 
+#       name: user name (1-20 digits)
+#       pin: access code (4-10 digits)
+#       enabled: lock code enabled on door?
+#       notify: notify if code used on door
+#       last_updated: Date/Time the values were updated
+#       last_used: Date/Time the code was used
+
+# Add your locks here
+lock:
+  - platform: group
+    name: "KB House Locks"
+    entities:
+      - lock.front_door_lock
+
+# Add notification services
+notify:
+  - name: "KB Lock Notify Group"
+    platform: group
+    services:
+      - service: mobile_app_bs_iphone
+      
+###################################################
+#
+#       NO CHANGES NEEDED BELOW HERE
+#
+###################################################
+
+### Needed variables
+
+input_text:
+  kb_last_lock_unlock_code_slot:
+    name: Lock Slot to Last Unlock Door
+  kb_last_lock_unlock_code_name:
+    name: Name of Person to Last Unlock Door
+    icon: mdi:account
+  kb_lock_name:
+    name: Lock Code Name
+    min: 1
+    max: 20
+    pattern: "^[\\w-]+$"
+    icon: mdi:form-textbox
+  kb_lock_pin:
+    name: Lock Code
+    min: 4
+    max: 10
+    pattern: "^[0-9]*$"
+    icon: mdi:security
+  kb_lock_slot:
+    name: Lock slot
+    min: 1
+    max: 2
+    pattern: "^[0-9]+$"
+    icon: mdi:lock-smart
+
+input_boolean:
+  kb_lock_enabled:
+    name: Lock Code Enabled
+    icon: mdi:check-circle-outline
+  kb_lock_notify:
+    name: Lock Code Notify
+    icon: mdi:alarm-bell 
+
+
+# Source: https://community.home-assistant.io/t/wth-cant-input-helpers-be-read-only-in-ui/467562/13
+template:
+
+  - trigger:
+      - platform: event
+        event_type: set_lockcode
+      - platform: event
+        event_type: remove_lockcode
+    sensor:
+      - unique_id: sensor_lockcode_20250921
+        name: Door lock codes
+        state: Lockcodes
+        attributes:
+          lockcodes: >
+            {% set current = this.attributes.get('lockcodes', {}) %}
+            {% if trigger.event.event_type == 'set_lockcode' %}
+              {% set new = {trigger.event.data.key: trigger.event.data.value} %}
+              {{ dict(current, **new) }}
+            {% elif trigger.event.event_type == 'remove_lockcode' %}
+              {{ dict(current.items() | rejectattr('0', 'eq', trigger.event.data.key)) }}
+            {% endif %}
+
+        
+script:
+  #
+  # Initialize the lock slots with default values.
+  # Each lock slot is represented as a dictionary with the following keys:
+  # - lock_slot: The slot number (1-30)
+  # - name: The name associated with the lock slot
+  # - pin: The PIN code for the lock slot (default "0000")
+  # - enabled: A boolean indicating if the lock slot is enabled (default false)
+  # - notification: A boolean indicating if notifications are enabled for the lock slot (default false)
+  #
+  initialize_lock_codes:
+    alias: Initialize lock code slots
+    description: "Set initial values to lock slots"                    
+    sequence:
+      - repeat:
+          count: 5
+          sequence: 
+            - action: script.clear_lockcode
+              data:
+                target_slot: "{{ repeat.index }}"
+
+  # Reset or create a lock code with all blank values
+  clear_lockcode:
+    # TODO:
+    # - Clear the value in the door lock
+    #
+    alias: Clear current values from lock code
+    description: "Sets the value of a specified lockcode to null."
+    fields:
+      target_slot:
+        description: "The lockcode slot to clear, 1-30"
+        example: 4
+        required: true
+        selector: 
+          number:
+            min: 1
+            max: 30
+    sequence:
+      - event: set_lockcode
+        event_data:
+          key: "slot_{{ '%02d' % target_slot | int }}"
+          value:
+            name: null
+            pin: null
+            enabled: false
+            notify: false
+            last_updated: never
+            last_used: never
+            
+  # Set values from user input (or clicked button on dashboard) to the lock
+  # TODO:
+  # - Set the values to the lock
+  
+  set_values_to_lock_code:
+    alias: Set values to lock code
+    description: Sets the value of a specified lockcode to user inputs.
+    fields:
+      target_slot:
+        description: The lockcode slot to set, 1-30
+        example: 4
+        required: true
+        selector:
+          number:
+            mode: box
+            min: 1
+            max: 30
+      target_name:
+        description: Name of user for this slot, <20 letters
+        example: Bill
+        required: true
+        selector:
+          text:
+            multiline: false
+      target_pin:
+        description: 4 digit pin
+        example: 1234 or 0009
+        required: true
+        selector:
+          number:
+            mode: box
+            min: 0
+            max: 9999
+      target_enabled:
+        description: Enabled for use?
+        required: true
+        selector:
+          boolean:
+      target_notify:
+        description: Notify when used?
+        required: true
+        selector:
+          boolean:
+    sequence:
+    - condition: template
+      value_template: >
+        {{ target_slot | regex_match('^\\d{1,2}$') and
+           target_pin | regex_match('^\\d{1,4}$') and
+           target_name | regex_match('^[a-zA-Z0-9 _-]{1,20}$') }}
+
+    - event: set_lockcode
+      event_data:
+        key: slot_{{ '%02d' % target_slot | int }}
+        value:
+          name: '{{ target_name}}'
+          pin: '{{ ''%04d'' % target_pin | int }}'
+          enabled: '{{ target_enabled }}'
+          notify: '{{ target_notify }}'
+          last_updated: '{{ now() }}'
+          last_used: never
