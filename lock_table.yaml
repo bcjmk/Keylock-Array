@@ -1,0 +1,41 @@
+type: markdown
+content: >
+  {% set my_dict = state_attr( 'sensor.door_lock_codes', 'lockcodes')  %}
+
+  # Lock Codes - {{ state_attr( my_dict.lock_1.device_id, 'friendly_name') }}
+
+
+  @Todo: Count number of slots with name = 'None' for available
+
+
+  Slots total: {{ my_dict.lock_1.num_slots }}
+
+  PIN length: {{ my_dict.lock_1.pin_length }}
+
+  | Slot | Name | PIN | Enabled | Notify | Last Used | Last Updated |
+
+  | :--: | :--- | :-: | :-----: | :---------: | --- | --- |
+
+  {%- for slot, values in my_dict.items() | sort %}
+
+  {%- if slot.startswith('slot_') %}
+
+  | {{ slot | replace( 'slot_', '') }} | {{ values['name']}} | {{ values['pin']
+  }} | {{ values['enabled'] }} | {{ values['notify'] }} | {%- if
+  values['last_used'] == 'never' %} never
+
+  {%- else %}{{ as_timestamp( values['last_used'], default=0) |
+  timestamp_custom('%x', true ) }} 
+
+  {%- endif %} |
+
+  {%- if values['last_updated'] == 'never' %} never
+
+  {%- else %}{{ as_timestamp( values['last_updated'], default=0) |
+  timestamp_custom('%x', true ) }} 
+
+  {%- endif %} |{%- endif %}
+
+  {%- endfor %}
+text_only: true
+title: Lock Table Card
