@@ -1,0 +1,74 @@
+type: horizontal-stack
+cards:
+  - type: entities
+    entities:
+      - entity: input_text.kb_lock_slot
+        name: Slot (1-30)
+      - entity: input_text.kb_lock_name
+        name: Name
+      - entity: input_text.kb_lock_pin
+        name: 4 digit code
+      - entity: input_boolean.kb_lock_enabled
+        name: Enabled
+      - entity: input_boolean.kb_lock_notify
+        name: Notify
+  - type: custom:config-template-card
+    entities:
+      - input_text.kb_lock_name
+      - input_text.kb_lock_pin
+      - input_text.kb_lock_slot
+      - input_boolean.kb_lock_enabled
+      - input_boolean.kb_lock_notify
+    card:
+      type: vertical-stack
+      cards:
+        - type: markdown
+          content: |
+            ## Apply Changes
+          card_mod:
+            style: |
+              ha-card {
+                background-color: Black;
+                color: White;
+                align: center;}
+        - type: entity-button
+          entity: input_text.kb_lock_name
+          name: Click here to SET lock
+          icon: mdi:key
+          color: Yellow
+          show_name: true
+          show_icon: true
+          card_mod:
+            style: |
+              ha-card {
+                background-color: LightGreen;
+                align: center;}
+          tap_action:
+            action: call-service
+            service: script.set_values_to_lock_code
+            data:
+              target_slot: ${ states['input_text.kb_lock_slot'].state }
+              target_name: ${ states['input_text.kb_lock_name'].state }
+              target_pin: ${ states['input_text.kb_lock_pin'].state}
+              target_enabled: ${ states['input_boolean.kb_lock_enabled'].state }
+              target_notify: ${ states['input_boolean.kb_lock_notify'].state }
+          hold_action:
+            action: none
+        - type: entity-button
+          entity: input_text.kb_lock_name
+          name: Click here to CLEAR lock
+          icon: mdi:backspace-outline
+          show_name: true
+          show_icon: true
+          card_mod:
+            style: |
+              ha-card {
+                background-color: Yellow;
+                align: center;}
+          tap_action:
+            action: call-service
+            service: script.clear_lockcode
+            data:
+              target_slot: ${ states['input_text.kb_lock_slot'].state }
+          hold_action:
+            action: none
