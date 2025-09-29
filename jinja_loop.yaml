@@ -1,0 +1,34 @@
+{%- set my_dict = state_attr( 'sensor.door_lock_codes', 'lock01')["slot_01"]  %}
+{{ my_dict }}
+
+{{ state_attr( 'sensor.door_lock_codes', 'lock01')["slot_01"]["name"] }}
+
+{%- set lock_code_slots = range(1, 5) %}  {# Loop from 1 to 4 #}
+
+{%- for i in lock_code_slots %}
+  {%- set slot_num = '%02d' % i  %}
+  {%- set slot_key = "slot_" ~ slot_num %}
+  {%- set slot_name = state_attr( 'sensor.door_lock_codes', 'lock01')[slot_key]["name"] %}
+  {%- set slot_pin = state_attr( 'sensor.door_lock_codes', 'lock01')[slot_key]["pin"] %}
+  {%- set slot_enabled = state_attr( 'sensor.door_lock_codes', 'lock01')[slot_key]["enabled"] %}
+  {%- set slot_notify = state_attr( 'sensor.door_lock_codes', 'lock01')[slot_key]["notify"] %}
+  {%- set slot_last_updated = state_attr( 'sensor.door_lock_codes', 'lock01')[slot_key]["last_updated"] %}
+  {%- set slot_last_used = state_attr( 'sensor.door_lock_codes', 'lock01')[slot_key]["last_used"] %}
+  {%- if slot_enabled == "on" %}
+    {%- set slot_enabled = '✅ Enabled' %}
+  {%- else %}
+    {%- set slot_enabled = '❌ Disabled' %}
+  {%- endif %}
+  {%- if slot_notify == "on" %}
+    {%- set slot_notify = '🔔 Notify ON' %}
+  {%- else %}
+    {%- set slot_notify = '🔕 Notify OFF' %}
+  {%- endif %}
+  KEY: {{ slot_key }}
+  NAME: {{ slot_name }}
+  PIN: {{ slot_pin }}
+  Enabled: {{ slot_enabled }}
+  Notify: {{ slot_notify }}
+  last_used: {{ slot_last_used }}
+  Last updated: {{ slot_last_updated }}
+{% endfor %}

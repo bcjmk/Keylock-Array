@@ -1,0 +1,45 @@
+type: custom:auto-entities
+card:
+  type: vertical-stack # Use a stack to hold the generated cards
+show_empty: false
+filter:
+  template: |
+    {%- set my_dict = state_attr( 'sensor.door_lock_codes', 'lockcodes') %}
+    {%- set ns = namespace(cards = []) %}
+    {%- for slot, values in my_dict.items() | selectattr( '0', 'match', '^slot_') | sort %}
+      {%- set item_index = loop.index %}
+      {%- if values.enabled == 'on' %}
+        {%- set enabled =  '✅ Enabled'  %}
+      {%- else %} 
+        {%- set enabled = '❌ Disabled' %}
+      {%- endif %}
+      {%- if values.notify == 'on' %}
+        {%- set notify =  '🔔 Notify ON' %}
+      {%- else %} 
+        {%- set notify = '🔕 Notify OFF' %}
+      {%- endif %}
+      
+      {%- set my_card = [{
+        'type': 'custom:button-card',
+        'entity': 'input_boolean.dummy_entity_' ~ item_index,
+        'name': values.name + ' | PIN: ' + values.pin + ' | ' + enabled + ' ' + notify,
+        'styles': {
+          'name': [
+            {'font-size': '18px'},
+            {'text-align': 'left'},
+          ],
+          'span.value-lg': [{'font-size': '28px'}], 
+          'span.unit-sm': [{'font-size': '16px'}]
+        },
+        'tap_action': {
+          'action': 'call-service',
+          'service': 'script.kb_set_kb_variables_from_slot',
+          'service_data': {
+            'target_index': item_index 
+          }
+        },
+      }]
+      %}
+      {%- set ns.cards = ns.cards + my_card %}
+    {%- endfor %}
+    {{ ns.cards }}

@@ -1,0 +1,67 @@
+type: custom:auto-entities
+card:
+  type: vertical-stack
+show_empty: false
+filter:
+  template: |
+    {% set cards = [] %}
+    {% set lock_code_slots = range(1, 5) %}  {# Loop from 1 to 4 #}
+
+    {% for i in lock_code_slots %}
+      {% set slot_num = i | string(format='%02d') %}
+      {% set slot_key = "slot_" ~ slot_num %}
+      
+      {% set card = [{
+        'type': 'custom:button-card',
+        'template': 'kb_bar_card',
+        
+        'variables': {
+          'dynamic_slot_key': slot_key,
+          'target_slot_index': i
+        },
+      {% set cards = cards + card %}
+    {% endfor %}
+    
+    {{ cards }}
+    
+        'name': {% raw %} | {% endraw %}
+          [[[
+            // Access the dynamic slot key from the button's config variables
+            const slotKey = this.config.variables.dynamic_slot_key; 
+            const index = this.config.variables.target_slot_index;
+            
+
+        
+            // Get the values using the dynamic key
+            // Use variables[slotKey] to access the data object
+
+            const slotData = variables[slotKey];
+            
+            // --- Your original logic, adapted to use slotData ---
+            const show_num = parseInt( "2460", 16) ;
+            const name = slotData.name || `— Slot ${index} —`; // Use index in default name
+            const pin = slotData.pin || '••••';
+            const enabled = slotData.enabled === 'on' ? '✅ Enabled' : '❌ Disabled';
+            const notify = slotData.notify === 'on' ? '🔔 Notify ON' : '🔕 Notify OFF';
+            
+            // Concatenate the fields
+            return `<span style="font-size: 18px; font-weight: bold;">${ String.fromCodePoint(show_num)}  ${name}</span>    ${enabled} | ${notify}`;
+          ]]],
+          
+        'tap_action': {
+          'action': 'call-service',
+          'service': 'script.kb_set_kb_variables_from_slot',
+          'data': {
+            # 2. Pass the dynamic index as target_slot
+            'target_slot': i 
+          }
+        },
+        'hold_action': {
+          'action': 'none'
+        }
+      }] %}
+      {{ card }}
+      {% set cards = cards + card %}
+    {% endfor %}
+    
+    {{ cards }}
